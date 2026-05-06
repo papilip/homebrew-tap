@@ -1,0 +1,83 @@
+name: Check tessdata_best upstream
+
+on:
+  schedule:
+    # Tous les lundis à 09:00 UTC.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare current vs upstream tag
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          ruby scripts/update-tessdata-best.rb --check > out.txt || rc=$?
+          rc="${rc:-0}"
+          cat out.txt
+          {
+            echo "exit_code=${rc}"
+            echo "current=$(awk -F': ' '/manifeste/{print $2}' out.txt)"
+            echo "upstream=$(awk -F': ' '/amont/{print $2}' out.txt)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open issue if a new upstream tag is available
+        if: steps.check.outputs.exit_code == '3'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPSTREAM: ${{ steps.check.outputs.upstream }}
+          CURRENT: ${{ steps.check.outputs.current }}
+        run: |
+          set -e
+          title="Mise à jour tessdata_best disponible : ${UPSTREAM}"
+
+          # Idempotence : ne rouvre pas une issue déjà ouverte avec ce titre.
+          existing=$(gh issue list \
+            --state open \
+            --search "in:title \"${title}\"" \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$existing" ]; then
+            echo "Issue déjà ouverte : #${existing}"
+            exit 0
+          fi
+
+          body="$(cat <<EOF
+          Une nouvelle version de [tessdata_best](https://github.com/tesseract-ocr/tessdata_best) est disponible.
+
+          - Tag courant dans le tap : \`${CURRENT}\`
+          - Tag amont le plus récent : \`${UPSTREAM}\`
+
+          Pour mettre à jour le tap :
+
+          \`\`\`bash
+          ruby scripts/update-tessdata-best.rb
+          git checkout -b update-tessdata-best-${UPSTREAM}
+          git add scripts/tessdata-best-manifest.tsv Formula/tessdata-best-*.rb
+          git commit -m "tessdata-best: bump to ${UPSTREAM}"
+          git push -u origin update-tessdata-best-${UPSTREAM}
+          gh pr create --fill
+          \`\`\`
+
+          Le téléchargement complet pèse environ 1,7 Go. Vérifiez que tous les
+          fichiers .traineddata existent toujours dans le nouveau tag avant de
+          fusionner (certaines langues peuvent avoir été retirées).
+          EOF
+          )"
+
+          gh issue create \
+            --title "$title" \
+            --body "$body" \
+            --label "tessdata-update" || \
+            gh issue create --title "$title" --body "$body"
