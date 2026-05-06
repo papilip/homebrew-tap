@@ -141,7 +141,10 @@ end
 
 def render_meta_formula(deps, tag, license_sha)
   url = "#{RAW_BASE}/#{tag}/LICENSE"
-  deps_block = deps.sort.map { |d| "  depends_on \"#{d}\"" }.join("\n")
+  # On ajoute "tessdata-best" (le wrapper, hors générateur) en plus des
+  # données : qui installe la méta-formule récupère aussi `tesseract-best`.
+  all_deps   = (["tessdata-best"] + deps).uniq.sort
+  deps_block = all_deps.map { |d| "  depends_on \"#{d}\"" }.join("\n")
 
   <<~RUBY
     # frozen_string_literal: true

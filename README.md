@@ -20,22 +20,28 @@ taille).
 
 **Particularité du tap** : une formule par langue (ou script). Vous installez
 seulement ce dont vous avez besoin, ou tout d'un coup avec
-`tessdata-best-all`.
+`tessdata-best-all`. Une formule outil (`tessdata-best`, sans suffixe)
+fournit un wrapper `tesseract-best` qui pointe automatiquement sur les
+modèles best — sans toucher à `tesseract` ni à `tessdata_fast`.
 
 #### Installer
 
 ```bash
-# Une langue
+# Le wrapper (recommandé) + une ou plusieurs langues
+brew install papilip/tap/tessdata-best papilip/tap/tessdata-best-{osd,fra,eng}
+
+# Une langue seule (sans wrapper)
 brew install papilip/tap/tessdata-best-fra
 
 # Plusieurs en une commande
 brew install papilip/tap/tessdata-best-{fra,eng,deu}
 
-# Tout (langues + scripts + osd + equ, ~1,7 Go)
+# Tout (wrapper + langues + scripts + osd + equ, ~1,7 Go)
 brew install papilip/tap/tessdata-best-all
 ```
 
-Les fichiers sont installés dans `/opt/homebrew/share/tessdata_best/`.
+Les fichiers `.traineddata` sont installés dans
+`/opt/homebrew/share/tessdata_best/`.
 
 #### Lister
 
@@ -56,26 +62,35 @@ Pour la liste complète des langues et scripts disponibles, voir le
 
 #### Configurer Tesseract
 
-Une seule variable d'environnement à définir :
+**Option 1 — wrapper `tesseract-best` (recommandé).** Aucun export
+nécessaire. La commande `tesseract` standard reste sur ses données par
+défaut (`tessdata_fast` si vous avez `tesseract-lang`) ; `tesseract-best`
+utilise toujours `tessdata_best`.
 
 ```bash
+brew install papilip/tap/tessdata-best   # fournit `tesseract-best`
+tesseract-best --list-langs
+tesseract-best image.png out -l fra
+tesseract-best image.png out -l fra+eng     # plusieurs langues
+tesseract-best image.png out -l script/Latin
+```
+
+**Option 2 — variable d'environnement.** Si vous voulez que `tesseract`
+lui-même utilise `tessdata_best` :
+
+```bash
+# Pour la session courante :
 export TESSDATA_PREFIX="$(brew --prefix)/share/tessdata_best"
-```
 
-Ajoutez-la à votre `~/.zshrc` (ou `~/.bashrc`). Puis :
+# Persistant (à ajouter à ~/.zshrc ou ~/.bashrc) :
+echo 'source $(brew --prefix)/share/tessdata-best/env.sh' >> ~/.zshrc
 
-```bash
-tesseract --list-langs
-tesseract image.png out -l fra
-tesseract image.png out -l fra+eng     # plusieurs langues
-tesseract image.png out -l script/Latin
-```
-
-Pour un usage ponctuel sans modifier le shell :
-
-```bash
+# Ponctuel, sans toucher au shell :
 TESSDATA_PREFIX="$(brew --prefix)/share/tessdata_best" tesseract image.png out -l fra
 ```
+
+`tesseract-best` respecte `TESSDATA_PREFIX` si vous le définissez vous-même
+(votre valeur a la priorité).
 
 #### Mettre à jour
 
@@ -135,7 +150,11 @@ brew install papilip/tap/tessdata-best-osd
 
 **Conflit avec `tesseract-lang`**
 
-Désinstallez l'un des deux pour éviter les ambiguïtés :
+Pas obligatoire si vous utilisez le wrapper `tesseract-best` (les deux
+variantes coexistent : `tesseract` reste sur `tessdata_fast`,
+`tesseract-best` utilise `tessdata_best`). Ne désinstallez `tesseract-lang`
+que si vous avez exporté `TESSDATA_PREFIX` globalement et préférez n'avoir
+qu'une seule variante :
 
 ```bash
 brew uninstall tesseract-lang

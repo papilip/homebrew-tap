@@ -10,6 +10,7 @@ class TessdataBestAll < Formula
   sha256 "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
   license "Apache-2.0"
 
+  depends_on "tessdata-best"
   depends_on "tessdata-best-afr"
   depends_on "tessdata-best-amh"
   depends_on "tessdata-best-ara"
